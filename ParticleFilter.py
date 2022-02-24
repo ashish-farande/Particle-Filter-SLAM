@@ -1,5 +1,3 @@
-import copy
-
 from Map import *
 from Sensor import *
 from sensor_utils import *
@@ -16,14 +14,18 @@ LIDAR_ANGLES = np.linspace(-5, 185, 286) / 180 * np.pi
 
 
 class Particle:
-    def __init__(self, position=(0, 0), angle=0, weight=0.0):
+    def __init__(self, position=[0, 0], angle=0, weight=0.0):
         self.position = position
         self.angle = angle
         self.weight = weight
 
 
+def get_noise(sigma):
+    return np.random.normal(0, sigma, 1)
+
+
 class ParticleFilter:
-    def __init__(self, n_particles=100):
+    def __init__(self, n_particles=10):
         self.particles = []
 
         self.map = Map()
@@ -40,17 +42,41 @@ class ParticleFilter:
 
         # Set Up for the sensors
         self.lidar.load_data(os.path.join(SENSOR_DATA_PATH, LIDAR_DATA_FILE))
-        self.move.load_data(gyro_path=os.path.join(SENSOR_DATA_PATH, FOG_DATA_FILE), encoder_data=os.path.join(SENSOR_DATA_PATH, ENCODER_DATA_FILE))
+        self.drive.load_data(gyro_path=os.path.join(SENSOR_DATA_PATH, FOG_DATA_FILE), encoder_data=os.path.join(SENSOR_DATA_PATH, ENCODER_DATA_FILE))
+
+        self.one_particle = Particle()
 
     def predict(self):
-        pass
+        d_robot_pose = np.array([0.0, 0.0])
+        move_ts = self.drive.get_next_timestamp()
+        lidar_ts = self.lidar.get_next_timestamp()
+
+        while move_ts < lidar_ts:
+            d_robot_pose += self.drive.read_sample()
+            move_ts = self.drive.get_next_timestamp()
+
+        self.one_particle.position[0] += d_robot_pose[0] * np.cos(self.one_particle.angle)
+        self.one_particle.position[1] += d_robot_pose[0] * np.sin(self.one_particle.angle)
+        self.one_particle.angle += d_robot_pose[1]
+
+        # TODO: Play with noise
+        # for particle in self.particles:
+        #     particle.position[0] += d_robot_pose[0] * np.cos(particle.angle) + get_noise(0.1)
+        #     particle.position[1] += d_robot_pose[0] * np.sin(particle.angle) + get_noise(0.1)
+        #     particle.angle += d_robot_pose[1] + get_noise(0.05)
 
     def update(self):
-        pass
+        # TODO: Map correlation to get the new weights particle
+        best_particle = self.one_particle
 
-    def update_map(self, lidar_coord):
-        lidar_coord_world = convert_to_world_frame(self.best_particle.angle, self.best_particle.position, lidar_coord[:, :2])
-        self.map.update_free(copy.deepcopy(self.best_particle.position), lidar_coord_world)
+        # Scan and update using the best particle
+        lidar_coord = self.scan()
+        lidar_coord_world = convert_to_world_frame(best_particle.angle, best_particle.position, lidar_coord[:, :2])
+
+        self.update_map(lidar_coord_world, best_particle)
+
+    def update_map(self, lidar_coord, best_particle):
+        self.map.update_free(best_particle.position, lidar_coord)
         self.map.update_map()
         return
 
@@ -61,9 +87,17 @@ class ParticleFilter:
         s_b = self.lidar.convert_to_body_frame(coord)
         return s_b
 
-    def add_noise(self):
-        pass
-
     def initialise_map(self):
-        self.update_map(self.scan())
+        best_particle = self.one_particle
+
+        lidar_coord = self.scan()
+        lidar_coord_world = convert_to_world_frame(best_particle.angle, best_particle.position, lidar_coord[:, :2])
+        self.update_map(lidar_coord_world, best_particle)
         return
+
+    def show_map(self):
+        self.map.display()
+
+    def resample(self):
+        # TODO: Resampling
+        pass

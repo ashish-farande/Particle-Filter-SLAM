@@ -15,7 +15,6 @@ VEHICLE_TO_LIDAR = 'Vehicle2Lidar.txt'
 VEHICLE_TO_FOG = 'Vehicle2FOG.txt'
 VEHICLE_TO_STEREO = 'Vehicle2Stereo.txt'
 
-
 LEFT_WHEEL_DIAMETER = 0.623479
 RIGHT_WHEEL_DIAMETER = 0.622806
 
@@ -116,9 +115,9 @@ class Move_Robot(Sensor):
                 theta += self.gyro.data[self.gyro_index, 2]
                 self.gyro_index += 1
 
-            ticks = self.encoder.data[self.next_index] - self.encoder.data[self.next_index-1]
-            left_dist = np.pi * LEFT_WHEEL_DIAMETER * ticks[ 0] / (4096.0*1)
-            right_dist = np.pi * RIGHT_WHEEL_DIAMETER * ticks[1] / (4096.0*1)
+            ticks = self.encoder.data[self.next_index] - self.encoder.data[self.next_index - 1]
+            left_dist = np.pi * LEFT_WHEEL_DIAMETER * ticks[0] / (4096.0 * 1)
+            right_dist = np.pi * RIGHT_WHEEL_DIAMETER * ticks[1] / (4096.0 * 1)
             dist = (left_dist + right_dist) / 2
 
             self.next_index += 1

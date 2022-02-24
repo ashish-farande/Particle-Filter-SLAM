@@ -1,5 +1,5 @@
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
 plt.ion()
 
@@ -79,6 +79,6 @@ def get_valid(angles, ranges):
 
 
 def convert_to_world_frame(angle, pos, points):
-    rotation = np.array([[np.cos(angle), -np.sin(angle)],[np.sin(angle), np.cos(angle)]])
+    rotation = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
     points = points @ rotation.T + pos
     return points

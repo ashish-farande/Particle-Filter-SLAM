@@ -1,16 +1,12 @@
-import numpy as np
-import matplotlib.pyplot as plt
+import cv2
 
 from sensor_utils import *
-from matplotlib import animation
-from IPython.display import clear_output
-import cv2
 
 MAP_SIZE = 1000
 
-class Map:
-    def __init__(self,x_min=-MAP_SIZE, y_min =-MAP_SIZE-1000, x_max=MAP_SIZE+1000, y_max=MAP_SIZE):
 
+class Map:
+    def __init__(self, x_min=-MAP_SIZE, y_min=-MAP_SIZE - 1000, x_max=MAP_SIZE + 1000, y_max=MAP_SIZE):
         self.x_min = x_min
         self.y_min = y_min
         self.x_max = x_max
@@ -31,14 +27,15 @@ class Map:
     def map_init(self):
         self.im.set_data(self.map)
 
-    def update_free(self, start_point, end_points):
-        end_points[:,0] = np.ceil((end_points[:,0] - self.x_min) / self.res).astype(np.int16) - 1
-        end_points[:,1] = np.ceil((end_points[:,1] - self.y_min) / self.res).astype(np.int16) - 1
-        start_point[0] = np.ceil((start_point[0] - self.x_min) / self.res).astype(np.int16) - 1
-        start_point[1] = np.ceil((start_point[1] - self.y_min) / self.res).astype(np.int16) - 1
+    def update_free(self, in_start_point, end_points):
+        start_point = [0, 0]
+        end_points[:, 0] = np.ceil((end_points[:, 0] - self.x_min) / self.res).astype(np.int16) - 1
+        end_points[:, 1] = np.ceil((end_points[:, 1] - self.y_min) / self.res).astype(np.int16) - 1
+        start_point[0] = np.ceil((in_start_point[0] - self.x_min) / self.res).astype(np.int16) - 1
+        start_point[1] = np.ceil((in_start_point[1] - self.y_min) / self.res).astype(np.int16) - 1
         self.robot_coord.append(start_point)
         newf, _ = get_mapping(start_point, end_points)
-        xis, yis = newf[:,0].astype(np.int16), newf[:,1].astype(np.int16)
+        xis, yis = newf[:, 0].astype(np.int16), newf[:, 1].astype(np.int16)
         indGood = np.logical_and(np.logical_and(np.logical_and((xis > 1), (yis > 1)), (xis < self.x_size)), (yis < self.y_size))
         self.odds[xis[indGood], yis[indGood]] -= np.log(10)
         self.map[xis[indGood], yis[indGood]] = 1
@@ -55,7 +52,7 @@ class Map:
         img = self.map.astype(np.uint8) * 255
 
         for point in self.robot_coord:
-            cv2.circle(img, (int(point[1]), int(point[0])),1 ,0, -1)
+            cv2.circle(img, (int(point[1]), int(point[0])), 1, 0, -1)
         cv2.imshow('map', img)
         cv2.waitKey(10)
         cv2.destroyAllWindows()
@@ -63,4 +60,3 @@ class Map:
     def animate(self):
         self.im.set_data(self.map)
         return self.im
-
