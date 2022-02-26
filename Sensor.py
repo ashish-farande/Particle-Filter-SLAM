@@ -24,7 +24,7 @@ class Sensor:
         self.translation = None
         self.data = None
         self.timestamp = None
-        self.next_index = 1
+        self.current_index = 0
         if param_file:
             self.get_transition_matrix(param_file)
 
@@ -50,16 +50,16 @@ class Sensor:
 
     def read_sample(self):
         data = None
-        if self.next_index < self.data.shape[0]:
-            data = self.data[self.next_index]
-            self.next_index += 1
+        if self.current_index < self.data.shape[0]:
+            data = self.data[self.current_index]
+            self.current_index += 1
         else:
             print("No more Samples!")
         return data
 
     def get_next_timestamp(self):
-        if self.next_index < self.data.shape[0]:
-            return self.timestamp[self.next_index]
+        if self.current_index < self.data.shape[0]-1:
+            return self.timestamp[self.current_index+1]
         else:
             print("No more Samples!")
         return None
@@ -88,6 +88,7 @@ class Drive(Sensor):
         self.encoder = Sensor()
         self.gyro = Sensor(param_file)
         self.gyro_index = 0
+        self.encoder_current_index = 1
 
     def load_data(self, filename=None, gyro_path=None, encoder_data=None):
         if gyro_path and encoder_data:
@@ -98,25 +99,25 @@ class Drive(Sensor):
 
     def read_sample(self):
         theta = 0
-        if self.next_index < self.encoder.data.shape[0]:
-            while self.gyro_index < self.gyro.data.shape[0] and self.gyro.timestamp[self.gyro_index] < self.encoder.timestamp[self.next_index]:
+        if self.encoder_current_index < self.encoder.data.shape[0]:
+            while self.gyro_index < self.gyro.data.shape[0] and self.gyro.timestamp[self.gyro_index] < self.encoder.timestamp[self.encoder_current_index]:
                 theta += self.gyro.data[self.gyro_index, 2]
                 self.gyro_index += 1
 
-            ticks = self.encoder.data[self.next_index] - self.encoder.data[self.next_index - 1]
+            ticks = self.encoder.data[self.encoder_current_index] - self.encoder.data[self.encoder_current_index - 1]
             left_dist = np.pi * LEFT_WHEEL_DIAMETER * ticks[0] / (4096.0 * 1)
             right_dist = np.pi * RIGHT_WHEEL_DIAMETER * ticks[1] / (4096.0 * 1)
             dist = (left_dist + right_dist) / 2
 
-            self.next_index += 1
+            self.encoder_current_index += 1
             return dist, theta
         else:
             print("No more Samples!")
         return None
 
     def get_next_timestamp(self):
-        if self.next_index < self.encoder.data.shape[0] and self.gyro_index < self.gyro.data.shape[0]:
-            return self.encoder.timestamp[self.next_index]
+        if self.encoder_current_index < self.encoder.data.shape[0]-1 and self.gyro_index < self.gyro.data.shape[0]:
+            return self.encoder.timestamp[self.encoder_current_index+1]
         else:
             print("No more Samples!")
         return None
