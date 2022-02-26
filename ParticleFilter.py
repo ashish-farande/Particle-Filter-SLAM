@@ -4,12 +4,6 @@ from sensor_utils import *
 
 PROJECT_PATH = os.path.dirname(os.path.abspath(__file__))
 
-DATA_PATH = os.path.join(PROJECT_PATH, 'data')
-SENSOR_DATA_PATH = os.path.join(DATA_PATH, 'sensor_data')
-
-LIDAR_DATA_FILE = 'lidar.csv'
-FOG_DATA_FILE = 'fog.csv'
-ENCODER_DATA_FILE = 'encoder.csv'
 LIDAR_ANGLES = np.linspace(-5, 185, 286) / 180 * np.pi
 
 
@@ -26,7 +20,10 @@ class Particle:
 
 
 class ParticleFilter:
-    def __init__(self, n_particles=20, enable_one_particle=False):
+    def __init__(self, n_particles=20, lidar_sensor=None, motion_sensor=None, enable_one_particle=False):
+        assert lidar_sensor is not None
+        assert motion_sensor is not None
+
         self.n_particles = n_particles
         self.particles = []
         self.enable_one_particle = enable_one_particle
@@ -34,18 +31,14 @@ class ParticleFilter:
         self.map = Map()
 
         # NOTE: Should not be part of Particle filter but for now we will create it inside the particle Filter
-        self.lidar = Lidar()
-        self.drive = Move_Robot()
+        self.lidar = lidar_sensor
+        self.drive = motion_sensor
 
         for i in range(n_particles):
             self.particles.append(Particle(weight=1 / n_particles))
 
         # Let any particle be the best particle
         self.best_particle = self.particles[0]
-
-        # Set Up for the sensors
-        self.lidar.load_data(os.path.join(SENSOR_DATA_PATH, LIDAR_DATA_FILE))
-        self.drive.load_data(gyro_path=os.path.join(SENSOR_DATA_PATH, FOG_DATA_FILE), encoder_data=os.path.join(SENSOR_DATA_PATH, ENCODER_DATA_FILE))
 
         self.one_particle = Particle()
 
@@ -79,7 +72,7 @@ class ParticleFilter:
         lidar_coord = self.scan()
 
         if self.enable_one_particle:
-            best_particle= self.one_particle
+            best_particle = self.one_particle
         else:
             # TODO: MAP Correlation
             max_weight = 0
@@ -125,17 +118,17 @@ class ParticleFilter:
         # TODO: Resampling
         # n_eff = 1/(np.sum(self.particle_weights**2))
         # if n_eff < :
-            #sort the weight vector
+        # sort the weight vector
         sorted_index = np.argsort(self.particle_weights)
         sorted_particle_poses = self.particle_poses[sorted_index]
 
         particle_cum = np.cumsum(self.particle_weights)
         new_poses = []
-        for i in range(self.n_particles-1):
+        for i in range(self.n_particles - 1):
             n_ = np.random.uniform(0, 1)
             j = 0
             while n_ > particle_cum[j]:
-                j+=1
-            new_poses.append(sorted_particle_poses[j,:])
+                j += 1
+            new_poses.append(sorted_particle_poses[j, :])
         self.particle_poses[:-1] = np.array(new_poses)
-        self.particle_weights = np.ones(self.n_particles)/self.n_particles
+        self.particle_weights = np.ones(self.n_particles) / self.n_particles

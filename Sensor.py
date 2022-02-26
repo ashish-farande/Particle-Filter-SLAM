@@ -7,13 +7,6 @@ import pandas as pd
 plt.ion()
 
 PROJECT_PATH = os.path.dirname(os.path.abspath(__file__))
-DATA_PATH = os.path.join(PROJECT_PATH, 'data')
-SENSOR_DATA_PATH = os.path.join(DATA_PATH, 'sensor_data')
-PARAM_PATH = os.path.join(DATA_PATH, 'param')
-
-VEHICLE_TO_LIDAR = 'Vehicle2Lidar.txt'
-VEHICLE_TO_FOG = 'Vehicle2FOG.txt'
-VEHICLE_TO_STEREO = 'Vehicle2Stereo.txt'
 
 LEFT_WHEEL_DIAMETER = 0.623479
 RIGHT_WHEEL_DIAMETER = 0.622806
@@ -27,13 +20,15 @@ def convert_angle_coord(angles, distances):
 
 
 class Sensor:
-    def __init__(self):
+    def __init__(self, param_file=None):
         self.transition_matrix = None
         self.rotation_matrix = None
         self.translation = None
         self.data = None
         self.timestamp = None
         self.next_index = 1
+        if param_file:
+            self.get_transition_matrix(param_file)
 
     def load_data(self, filename):
         data_csv = pd.read_csv(filename, header=None)
@@ -73,32 +68,27 @@ class Sensor:
 
 
 class Lidar(Sensor):
-    def __init__(self):
-        super().__init__()
-        Sensor.get_transition_matrix(self, os.path.join(PARAM_PATH, VEHICLE_TO_LIDAR))
+    def __init__(self, param_file):
+        super().__init__(param_file)
 
-    def disp(self, ranges):
-        angles = np.linspace(-5, 185, 286) / 180 * np.pi
-        plt.figure()
-        ax = plt.subplot(111, projection='polar')
-        ax.disp(angles, ranges)
-        ax.set_rmax(80)
-        ax.set_rticks([0.5, 1, 1.5, 2])  # fewer radial ticks
-        ax.set_rlabel_position(-22.5)  # get radial labels away from plotted line
-        ax.grid(True)
-        ax.set_title("Lidar scan data", va='bottom')
-        plt.show()
+    # def disp(self, ranges):
+    #     angles = np.linspace(-5, 185, 286) / 180 * np.pi
+    #     plt.figure()
+    #     ax = plt.subplot(111, projection='polar')
+    #     ax.disp(angles, ranges)
+    #     ax.set_rmax(80)
+    #     ax.set_rticks([0.5, 1, 1.5, 2])  # fewer radial ticks
+    #     ax.set_rlabel_position(-22.5)  # get radial labels away from plotted line
+    #     ax.grid(True)
+    #     ax.set_title("Lidar scan data", va='bottom')
+    #     plt.show()
 
 
-class Move_Robot(Sensor):
-    def __init__(self):
-        super().__init__()
+class Drive(Sensor):
+    def __init__(self, param_file):
+        super().__init__(param_file)
         self.encoder = Sensor()
-        self.gyro = Sensor()
-        self.gyro.get_transition_matrix(os.path.join(PARAM_PATH, VEHICLE_TO_FOG))
-        self.transition_matrix = self.gyro.transition_matrix
-        self.rotation_matrix = self.gyro.rotation_matrix
-        self.translation = self.gyro.translation
+        self.gyro = Sensor(param_file)
         self.gyro_index = 0
 
     def load_data(self, filename=None, gyro_path=None, encoder_data=None):
