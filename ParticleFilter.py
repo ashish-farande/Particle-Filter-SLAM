@@ -13,6 +13,11 @@ ENCODER_DATA_FILE = 'encoder.csv'
 LIDAR_ANGLES = np.linspace(-5, 185, 286) / 180 * np.pi
 
 
+def add_noise(n, sigmas):
+    n = np.random.normal(np.zeros(len(sigmas)), sigmas, size=(n, len(sigmas)))
+    return n
+
+
 class Particle:
     def __init__(self, position=[0, 0], angle=0, weight=0.0):
         self.position = position
@@ -20,13 +25,11 @@ class Particle:
         self.weight = weight
 
 
-def get_noise(sigma):
-    return np.random.normal(0, sigma, 1)
-
-
 class ParticleFilter:
-    def __init__(self, n_particles=10):
+    def __init__(self, n_particles=20, enable_one_particle=False):
+        self.n_particles = n_particles
         self.particles = []
+        self.enable_one_particle = enable_one_particle
 
         self.map = Map()
 
@@ -46,6 +49,9 @@ class ParticleFilter:
 
         self.one_particle = Particle()
 
+        self.particle_poses = np.zeros((n_particles, 3))
+        self.particle_weights = np.ones(n_particles) / n_particles
+
     def predict(self):
         d_robot_pose = np.array([0.0, 0.0])
         move_ts = self.drive.get_next_timestamp()
@@ -55,29 +61,46 @@ class ParticleFilter:
             d_robot_pose += self.drive.read_sample()
             move_ts = self.drive.get_next_timestamp()
 
-        self.one_particle.position[0] += d_robot_pose[0] * np.cos(self.one_particle.angle)
-        self.one_particle.position[1] += d_robot_pose[0] * np.sin(self.one_particle.angle)
-        self.one_particle.angle += d_robot_pose[1]
+        if self.enable_one_particle:
+            self.one_particle.position[0] += d_robot_pose[0] * np.cos(self.one_particle.angle)
+            self.one_particle.position[1] += d_robot_pose[0] * np.sin(self.one_particle.angle)
+            self.one_particle.angle += d_robot_pose[1]
 
-        # TODO: Play with noise
-        # for particle in self.particles:
-        #     particle.position[0] += d_robot_pose[0] * np.cos(particle.angle) + get_noise(0.1)
-        #     particle.position[1] += d_robot_pose[0] * np.sin(particle.angle) + get_noise(0.1)
-        #     particle.angle += d_robot_pose[1] + get_noise(0.05)
+        else:
+            # TODO: Play with noise
+            for i in range(self.particle_poses.shape[0]):
+                self.particle_poses[i, 0] += d_robot_pose[0] * np.cos(self.particle_poses[i, 2])
+                self.particle_poses[i, 1] += d_robot_pose[0] * np.sin(self.particle_poses[i, 2])
+                self.particle_poses[i, 2] += d_robot_pose[1]
+
+            self.particle_poses[:-1] += add_noise(self.particle_poses.shape[0] - 1, [0.5, 0.5, 0.01])
 
     def update(self):
-        # TODO: Map correlation to get the new weights particle
-        best_particle = self.one_particle
+        lidar_coord = self.scan()
+
+        if self.enable_one_particle:
+            best_particle= self.one_particle
+        else:
+            # TODO: MAP Correlation
+            max_weight = 0
+            for i in range(self.particle_poses.shape[0]):
+                lidar_coord_particle = convert_to_world_frame(self.particle_poses[i, 2], self.particle_poses[i, :2], lidar_coord[:, :2])
+                self.particle_weights[i] = self.map.map_correlation(self.particle_poses[i, :2], lidar_coord_particle)
+                if self.particle_weights[i] > max_weight:
+                    max_weight = self.particle_weights[i]
+
+            self.particle_weights /= np.sum(self.particle_weights)
+            best_particle_pose = self.particle_poses[np.argmax(self.particle_weights)]
+            best_particle = Particle(position=best_particle_pose[:2], angle=best_particle_pose[2], weight=max_weight)
 
         # Scan and update using the best particle
-        lidar_coord = self.scan()
         lidar_coord_world = convert_to_world_frame(best_particle.angle, best_particle.position, lidar_coord[:, :2])
 
         self.update_map(lidar_coord_world, best_particle)
 
     def update_map(self, lidar_coord, best_particle):
-        self.map.update_free(best_particle.position, lidar_coord)
-        self.map.update_map()
+        self.map.update_free(np.array(best_particle.position), lidar_coord)
+        # self.map.update_map()
         return
 
     def scan(self):
@@ -100,4 +123,19 @@ class ParticleFilter:
 
     def resample(self):
         # TODO: Resampling
-        pass
+        # n_eff = 1/(np.sum(self.particle_weights**2))
+        # if n_eff < :
+            #sort the weight vector
+        sorted_index = np.argsort(self.particle_weights)
+        sorted_particle_poses = self.particle_poses[sorted_index]
+
+        particle_cum = np.cumsum(self.particle_weights)
+        new_poses = []
+        for i in range(self.n_particles-1):
+            n_ = np.random.uniform(0, 1)
+            j = 0
+            while n_ > particle_cum[j]:
+                j+=1
+            new_poses.append(sorted_particle_poses[j,:])
+        self.particle_poses[:-1] = np.array(new_poses)
+        self.particle_weights = np.ones(self.n_particles)/self.n_particles

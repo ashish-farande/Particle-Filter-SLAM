@@ -21,4 +21,5 @@ while move_ts and lidar_ts:
     lidar_ts = pf.lidar.get_next_timestamp()
     i += 1
 
+pf.map.build_map()
 print("Done")

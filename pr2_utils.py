@@ -181,15 +181,7 @@ def test_mapCorrelation():
   
   # convert position in the map frame here 
   Y = np.stack((xs0,ys0))
-  points = None
-  for i in range(xs0.shape[0]):
-    if points is None:
-      points = bresenham2D(0,0,xs0[i], ys0[i]).T
-    else:
-      points = np.concatenate((points, bresenham2D(0,0,xs0[i], ys0[i]).T))
 
-  xs0 = points[:,0]
-  ys0 = points[:,1]
   
   # convert from meters to cells
   xis = np.ceil((xs0 - MAP['xmin']) / MAP['res'] ).astype(np.int16)-1
@@ -269,8 +261,8 @@ def show_lidar():
 
 
 if __name__ == '__main__':
-  #compute_stereo()
+  compute_stereo()
   # show_lidar()
-  test_mapCorrelation()
-  test_bresenham2D()
+  # test_mapCorrelation()
+  # test_bresenham2D()
   
