@@ -6,8 +6,6 @@ import pandas as pd
 
 plt.ion()
 
-PROJECT_PATH = os.path.dirname(os.path.abspath(__file__))
-
 LEFT_WHEEL_DIAMETER = 0.623479
 RIGHT_WHEEL_DIAMETER = 0.622806
 

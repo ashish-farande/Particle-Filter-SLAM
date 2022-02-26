@@ -23,7 +23,7 @@ lidar = Lidar(param_file=LIDAR_TO_VEHICLE_PARAMETERS_PATH)
 drive = Drive(param_file=FOG_TO_VEHICLE_PARAMETERS_PATH)
 
 # Set Up for the sensors
-lidar.load_data(os.path.join(SENSOR_DATA_PATH, LIDAR_DATA_FILE))
+lidar.load_data(LIDAR_DATA_FILE)
 drive.load_data(gyro_path=FOG_DATA_FILE, encoder_data=ENCODER_DATA_FILE)
 
 # Create Particle Filter
