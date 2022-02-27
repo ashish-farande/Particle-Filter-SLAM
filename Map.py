@@ -22,6 +22,7 @@ class Map:
         self.odds = np.zeros((self.x_size, self.y_size))
         self.map = np.ones((self.x_size, self.y_size), dtype="uint8")
         self.robot_coord = []
+        self.texture_map = np.zeros((self.x_size, self.y_size, 3), dtype="uint8") * 255
         # self.fig =  plt.figure()
         # self.fig , self.ax = plt.subplots(1,1)
         # self.im = self.ax.imshow(self.map, cmap='hot', vmin=0, vmax=1, animated=True)
@@ -118,6 +119,19 @@ class Map:
 
         cv2.imshow('map', img)
         cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+        img = self.texture_map
+        cv2.imshow('Texture Map', img)
+        cv2.waitKey(10)
+        cv2.destroyAllWindows()
+
+    def build_texture(self, coord, pixel_values):
+        new_coord = self.convert_to_map(coord)
+        self.texture_map[new_coord[:,0],new_coord[:,1]] = pixel_values
+        img = self.texture_map
+        cv2.imshow('Texture Map', img)
+        cv2.waitKey(10)
         cv2.destroyAllWindows()
 
 

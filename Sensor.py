@@ -44,8 +44,9 @@ class Sensor:
             self.transition_matrix = np.vstack((transition_matrix, [0, 0, 0, 1])).astype(np.float)
 
     def convert_to_body_frame(self, data):
-        data = np.hstack((data, np.zeros((data.shape[0], 1))))
-        new_data = self.rotation_matrix @ data.T + self.translation
+        if data.shape[1] == 2:
+            data = np.hstack((data, np.zeros((data.shape[0], 1))))
+        new_data = self.rotation_matrix @ data.T
         return new_data.T[:, :3]
 
     def read_sample(self):
@@ -58,7 +59,7 @@ class Sensor:
         return data
 
     def get_next_timestamp(self):
-        if self.current_index < self.data.shape[0]-1:
+        if self.current_index < self.timestamp.shape[0]-1:
             return self.timestamp[self.current_index+1]
         else:
             print("No more Samples!")
@@ -68,18 +69,6 @@ class Sensor:
 class Lidar(Sensor):
     def __init__(self, param_file):
         super().__init__(param_file)
-
-    # def disp(self, ranges):
-    #     angles = np.linspace(-5, 185, 286) / 180 * np.pi
-    #     plt.figure()
-    #     ax = plt.subplot(111, projection='polar')
-    #     ax.disp(angles, ranges)
-    #     ax.set_rmax(80)
-    #     ax.set_rticks([0.5, 1, 1.5, 2])  # fewer radial ticks
-    #     ax.set_rlabel_position(-22.5)  # get radial labels away from plotted line
-    #     ax.grid(True)
-    #     ax.set_title("Lidar scan data", va='bottom')
-    #     plt.show()
 
 
 class Drive(Sensor):

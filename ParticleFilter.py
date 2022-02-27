@@ -38,7 +38,7 @@ class ParticleFilter:
             self.particles.append(Particle(weight=1 / n_particles))
 
         # Let any particle be the best particle
-        self.best_particle = self.particles[0]
+        self.best_particle = Particle()
 
         self.one_particle = Particle()
 
@@ -72,7 +72,7 @@ class ParticleFilter:
         lidar_coord = self.scan()
 
         if self.enable_one_particle:
-            best_particle = self.one_particle
+            self.best_particle = self.one_particle
         else:
             # TODO: MAP Correlation
             max_weight = 0
@@ -84,12 +84,12 @@ class ParticleFilter:
 
             self.particle_weights /= np.sum(self.particle_weights)
             best_particle_pose = self.particle_poses[np.argmax(self.particle_weights)]
-            best_particle = Particle(position=best_particle_pose[:2], angle=best_particle_pose[2], weight=max_weight)
+            self.best_particle = Particle(position=best_particle_pose[:2], angle=best_particle_pose[2], weight=max_weight)
 
         # Scan and update using the best particle
-        lidar_coord_world = convert_to_world_frame(best_particle.angle, best_particle.position, lidar_coord[:, :2])
+        lidar_coord_world = convert_to_world_frame(self.best_particle.angle, self.best_particle.position, lidar_coord[:, :2])
 
-        self.update_map(lidar_coord_world, best_particle)
+        self.update_map(lidar_coord_world, self.best_particle)
 
     def update_map(self, lidar_coord, best_particle):
         self.map.update_free(np.array(best_particle.position), lidar_coord)
@@ -104,11 +104,11 @@ class ParticleFilter:
         return s_b
 
     def initialise_map(self):
-        best_particle = self.one_particle
+        self.best_particle = Particle()
 
         lidar_coord = self.scan()
-        lidar_coord_world = convert_to_world_frame(best_particle.angle, best_particle.position, lidar_coord[:, :2])
-        self.update_map(lidar_coord_world, best_particle)
+        lidar_coord_world = convert_to_world_frame(self.best_particle.angle, self.best_particle.position, lidar_coord[:, :2])
+        self.update_map(lidar_coord_world, self.best_particle)
         return
 
     def show_map(self):
@@ -132,3 +132,7 @@ class ParticleFilter:
             new_poses.append(sorted_particle_poses[j, :])
         self.particle_poses[:-1] = np.array(new_poses)
         self.particle_weights = np.ones(self.n_particles) / self.n_particles
+
+    def texture_map(self, coord, pixel_values):
+        stereo_coord_world = convert_to_world_frame(self.best_particle.angle, self.best_particle.position, coord[:, :2])
+        self.map.build_texture(stereo_coord_world, pixel_values)
