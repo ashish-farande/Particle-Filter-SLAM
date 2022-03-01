@@ -26,22 +26,30 @@ class Particle:
 
 
 class ParticleFilter:
-    def __init__(self, n_particles=20, enable_one_particle=False):
+    def __init__(self, n_particles=20, enable_dead_reckoning=False):
         self.n_particles = n_particles
-        self.enable_one_particle = enable_one_particle
+        self.enable_dead_reckoning = enable_dead_reckoning
 
         self.map = Map()
 
         # Let any particle be the best particle
         self.best_particle = Particle()
-        if self.enable_one_particle:
+
+        # One Particle feature is used for Dead-Reckoning
+        if self.enable_dead_reckoning:
             self.one_particle = Particle()
         else:
             self.particle_poses = np.zeros((n_particles, 3))
             self.particle_weights = np.ones(n_particles) / n_particles
 
     def predict(self, delta_robot_pose):
-        if self.enable_one_particle:
+        """
+        Update the pose using the delta pose and the current pose. Also, add noise to the particles.
+
+        @param delta_robot_pose: [dx, dy, d_theta]
+        @return:
+        """
+        if self.enable_dead_reckoning:
             self.one_particle.position[0] += delta_robot_pose[0] * np.cos(self.one_particle.angle)
             self.one_particle.position[1] += delta_robot_pose[0] * np.sin(self.one_particle.angle)
             self.one_particle.angle += delta_robot_pose[1]
@@ -55,8 +63,19 @@ class ParticleFilter:
             self.particle_poses[:-1] += add_noise(self.particle_poses.shape[0] - 1, [0.5, 0.5, 0.01])
 
     def update(self, lidar_observation):
+        """
+
+        @param lidar_observation: End points from Lidar Coordinates in the robot frame
+        @return:
+
+        Carries out the Update step of the Particle Filter. It basically updates the weights of the particles using map-correlation.
+        """
+        if lidar_observation is None:
+            print("No Lidar Observation")
+            return
+
         # Find the weights of the particles
-        if self.enable_one_particle:
+        if self.enable_dead_reckoning:
             self.best_particle = self.one_particle
         else:
             # TODO: MAP Correlation
@@ -75,7 +94,7 @@ class ParticleFilter:
         # Get the world frame coord for the best particle
         lidar_coord_world = convert_to_world_frame(self.best_particle.angle, self.best_particle.position, lidar_observation[:, :2])
 
-        # Update the map using the best particle
+        # Update the map using the best particles lidar scan
         self.update_map(lidar_coord_world, self.best_particle)
 
     def update_map(self, lidar_coord, best_particle):
@@ -83,6 +102,13 @@ class ParticleFilter:
         return
 
     def initialise_map(self, lidar_observation):
+        """
+
+        @param lidar_observation: End points from Lidar Coordinates in the robot frame
+        @return:
+
+        As name suggests it initialises the map with the first data from lidar sensor
+        """
         self.best_particle = Particle()
         lidar_coord_world = convert_to_world_frame(self.best_particle.angle, self.best_particle.position, lidar_observation[:, :2])
         self.update_map(lidar_coord_world, self.best_particle)
@@ -92,6 +118,9 @@ class ParticleFilter:
         self.map.display(is_textured)
 
     def resample(self):
+        """
+        Uses Stratified sampling to sample the particles using their weights.
+        """
         # Do the resampling always
         # Stratified Resampling
         sorted_index = np.argsort(self.particle_weights)

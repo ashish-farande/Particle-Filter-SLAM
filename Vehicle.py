@@ -20,7 +20,6 @@ ENCODER_DATA_FILE = os.path.join(SENSOR_DATA_PATH, 'encoder.csv')
 LEFT_CAMERA_DATA_PATH = os.path.join(IMAGES_DATA_PATH, 'stereo_left')
 RIGHT_CAMERA_DATA_PATH = os.path.join(IMAGES_DATA_PATH, 'stereo_right')
 
-
 LIDAR_TO_VEHICLE_PARAMETERS_PATH = os.path.join(PARAM_PATH, 'Vehicle2Lidar.txt')
 FOG_TO_VEHICLE_PARAMETERS_PATH = os.path.join(PARAM_PATH, 'Vehicle2FOG.txt')
 STEREO_TO_VEHICLE_PARAMETERS_PATH = os.path.join(PARAM_PATH, 'Vehicle2Stereo.txt')
@@ -42,6 +41,9 @@ class Vehicle:
         self.pf = ParticleFilter()
 
     def start(self):
+        """
+        This function would simulate the starting of vehicle, where all the sensors and the engine will be powered.
+        """
         # Start loading the data for the sensors
         self.lidar.load_data(LIDAR_DATA_FILE)
         self.motion_sensor.load_data(gyro_path=FOG_DATA_FILE, encoder_data=ENCODER_DATA_FILE)
@@ -49,11 +51,12 @@ class Vehicle:
 
         # Initialise Map
         self.pf.initialise_map(self.observe())
-        # pf.show_map()
-
-        pass
 
     def drive(self):
+        """
+        Simulates the drive of a vehicle, where it moves and observes the World.
+        Internally, it makes use of the particle filter for SLAM as it drives
+        """
         move_ts = self.motion_sensor.get_next_timestamp()
         lidar_ts = self.lidar.get_next_timestamp()
         stereo_ts = self.stereo.get_next_timestamp()
@@ -78,9 +81,11 @@ class Vehicle:
             move_ts = self.motion_sensor.get_next_timestamp()
             lidar_ts = self.lidar.get_next_timestamp()
             i += 1
-        pass
 
     def move(self):
+        """
+        Gets the delta change in pose from differential drive. Internal this is synced with the lidar observation timestamp. So, we collect the data until we have a lidar observation
+        """
         # Motion
         d_robot_pose = np.array([0.0, 0.0])
         move_ts = self.motion_sensor.get_next_timestamp()
@@ -92,6 +97,11 @@ class Vehicle:
         return d_robot_pose
 
     def observe(self):
+        """
+        @return: The end Coordinates detected by Lidar
+
+        This function collects the next scan from the lidar and converts them to cartesian. And returns this coordinates in the Robot Frame
+        """
         lidar_data = self.lidar.read_sample()
         angles, ranges = get_valid(LIDAR_ANGLES, lidar_data)
         coord = convert_angle_coord(angles, ranges)
