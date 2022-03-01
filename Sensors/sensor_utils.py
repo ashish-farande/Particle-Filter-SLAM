@@ -71,15 +71,16 @@ def get_mapping(bot_pos, points):
         else:
             free_points = np.concatenate((free_points, point_space[:-1, :]))
             block_points = np.concatenate((block_points, point_space[-1:, :]))
+
+    new_free = None
     if free_points is not None:
         new_free = unique(free_points).astype(np.int16)
-    else:
-        new_free = np.array([[]]).astype(np.int16)
-    return new_free, block_points.astype(np.int16)
+
+    return new_free
 
 
 def get_valid(angles, ranges):
-    indValid = np.logical_and((ranges < 60), (ranges > 0.1))
+    indValid = np.logical_and((ranges < 40), (ranges > 0.1))
     ranges = ranges[indValid]
     angles = angles[indValid]
     return angles, ranges
