@@ -1,11 +1,9 @@
 import os
-
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt
 
-plt.ion
-from Sensor import Sensor
+from Sensors.Sensor import Sensor
+
 
 Z_MIN = -50
 Z_MAX = 10

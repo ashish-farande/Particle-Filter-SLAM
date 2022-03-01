@@ -1,7 +1,11 @@
-import matplotlib.pyplot as plt
 import numpy as np
 
-plt.ion()
+
+def convert_angle_coord(angles, distances):
+    coord = np.zeros((angles.shape[0], 2))
+    coord[:, 0] = distances * np.cos(angles)
+    coord[:, 1] = distances * np.sin(angles)
+    return coord
 
 
 def unique(a):
@@ -67,18 +71,18 @@ def get_mapping(bot_pos, points):
         else:
             free_points = np.concatenate((free_points, point_space[:-1, :]))
             block_points = np.concatenate((block_points, point_space[-1:, :]))
-
-    return unique(free_points).astype(np.int16), block_points.astype(np.int16)
+    if free_points is not None:
+        new_free = unique(free_points).astype(np.int16)
+    else:
+        new_free = np.array([[]]).astype(np.int16)
+    return new_free, block_points.astype(np.int16)
 
 
 def get_valid(angles, ranges):
-    indValid = np.logical_and((ranges < 80), (ranges > 0.1))
+    indValid = np.logical_and((ranges < 60), (ranges > 0.1))
     ranges = ranges[indValid]
     angles = angles[indValid]
     return angles, ranges
 
 
-def convert_to_world_frame(angle, pos, points):
-    rotation = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
-    points = points @ rotation.T + pos
-    return points
+
