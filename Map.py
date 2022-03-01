@@ -47,7 +47,7 @@ class Map:
         ind_good = np.logical_and(np.logical_and(np.logical_and((xis > 1), (yis > 1)), (xis < self.x_size)), (yis < self.y_size))
 
         # Update the log odds
-        added_logs = self.odds[xis[ind_good], yis[ind_good]] - np.log(4)
+        added_logs = self.odds[xis[ind_good], yis[ind_good]] + np.log(4)
         clipped_vals = np.clip(added_logs, LAMBDA_MIN, LAMBDA_MAX)
         self.odds[xis[ind_good], yis[ind_good]] = clipped_vals
 
@@ -57,7 +57,7 @@ class Map:
 
         xis, yis = end_points[:, 0], end_points[:, 1]
         ind_good = np.logical_and(np.logical_and(np.logical_and((xis > 1), (yis > 1)), (xis < self.x_size)), (yis < self.y_size))
-        added_logs = self.odds[xis[ind_good], yis[ind_good]] + np.log(4)
+        added_logs = self.odds[xis[ind_good], yis[ind_good]] - np.log(4)
         clipped_vals = np.clip(added_logs, LAMBDA_MIN, LAMBDA_MAX)
         self.odds[xis[ind_good], yis[ind_good]] = clipped_vals
         self.update_map(xis[ind_good], yis[ind_good])
@@ -71,23 +71,8 @@ class Map:
         pass
 
     def display(self, particles=None):
-        # plt.imshow(self.map, cmap='hot')
-        # plt.show()
-        # self.im.set_data(self.map)
-        # self.fig.canvas.draw()
-        # img = self.map.astype(np.uint8) * 255
-
         scaled = self.odds+abs(LAMBDA_MIN)
         img = (scaled * 255/(2*LAMBDA_MAX)).astype(np.uint8)
-
-        # img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-        # if particles:
-        #     for point in particles:
-        #         cv2.circle(img, (int(point[1]), int(point[0])), 1, (0,255,0), -1)
-        # else:
-        #     for point in self.robot_coord:
-        #         cv2.circle(img, (int(point[1]), int(point[0])), 1, (0,255,0), -1)
-
         cv2.imshow('Log odds', img)
         cv2.waitKey(10)
         cv2.destroyAllWindows()
@@ -101,8 +86,6 @@ class Map:
     def map_correlation(self, in_start_point, in_end_points ):
         ## TODO: Implement correlation
         end_points = self.convert_to_map(in_end_points)
-        # start_point = self.convert_to_map(in_start_point[np.newaxis, :])[0, :]
-        # newf, end_line = get_mapping(start_point, end_points)
         xis, yis = end_points[:, 0].astype(np.int16), end_points[:, 1].astype(np.int16)
         ind_good = np.logical_and(np.logical_and(np.logical_and((xis > 1), (yis > 1)), (xis < self.x_size)), (yis < self.y_size))
         val = np.sum(self.map[xis[ind_good], yis[ind_good]])

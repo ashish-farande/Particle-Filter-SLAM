@@ -49,14 +49,14 @@ i = 0
 while move_ts and lidar_ts:
     pf.predict()
     pf.update()
-    while stereo_ts and lidar_ts  and lidar_ts > stereo_ts:
-        coord, pixel = stereo.read_sample()
-        stereo_ts = stereo.get_next_timestamp()
-        pf.texture_map(coord, pixel)
+    # while stereo_ts and lidar_ts  and lidar_ts > stereo_ts:
+    #     coord, pixel = stereo.read_sample()
+    #     stereo_ts = stereo.get_next_timestamp()
+    #     pf.texture_map(coord, pixel)
     pf.resample()
 
-    # if i % 100 == 0:
-    #     pf.show_map()
+    if i % 100 == 0:
+        pf.show_map()
 
     move_ts = drive.get_next_timestamp()
     lidar_ts = lidar.get_next_timestamp()
