@@ -5,8 +5,8 @@ import numpy as np
 from Sensors.Sensor import Sensor
 
 
-Z_MIN = -50
-Z_MAX = 10
+Z_MIN = -10
+Z_MAX = 50
 
 
 class Camera:
