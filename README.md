@@ -3,7 +3,6 @@ Implemented simultaneous localization and mapping (SLAM) using odometry, 2-D LiD
 
 Details on the underlying technical approach can be found [here](https://drive.google.com/file/d/15kYTpraH4Hhz9RK780Gplf1EBF75bfpc/view?usp=sharing)
 
-![alt text](https://github.com/ashish-farande/Particle-Filter-SLAM/blob/master/Samples/Map.png?raw=true)
 
 
 ### Installation
@@ -53,3 +52,6 @@ We can also set the number of particles, by running the follwing command
 $ python main.py --particles=10
 ```
 By default, the particle filter is initialized with 20 particles.
+
+### Maps
+Trajectory and the maps can be found in the ```Samples``` directory.
