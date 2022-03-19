@@ -16,7 +16,7 @@ class Camera:
         self.project_matrix = config.getNode("projection_matrix").mat()
         self.inverse_projection_matrix = np.linalg.inv(self.project_matrix[:3, :3])
 
-    def convert_to_optical_frame(self, coord_list):
+    def convert_to_canonical_frame(self, coord_list):
         new_coord = coord_list @ self.inverse_projection_matrix.T
         return new_coord
 
@@ -43,35 +43,41 @@ class Stereo(Sensor):
         assert self.right_camera_data_folder is not None
 
         if self.current_index < self.timestamp.shape[0]:
+            # Read Image and convert to grayscale
             filename = str(self.timestamp[self.current_index]) + ".png"
+
             left_img = cv2.imread(os.path.join(self.left_camera_data_folder, filename), 0)
             right_img = cv2.imread(os.path.join(self.right_camera_data_folder, filename), 0)
 
             left_img_colour = cv2.cvtColor(left_img, cv2.COLOR_BAYER_BG2BGR)
-            right_img = cv2.cvtColor(right_img, cv2.COLOR_BAYER_BG2BGR)
+            right_img_colour = cv2.cvtColor(right_img, cv2.COLOR_BAYER_BG2BGR)
 
             left_img = cv2.cvtColor(left_img_colour, cv2.COLOR_BGR2GRAY)
-            right_img = cv2.cvtColor(right_img, cv2.COLOR_BGR2GRAY)
+            right_img = cv2.cvtColor(right_img_colour, cv2.COLOR_BGR2GRAY)
 
-            # You may need to fine-tune the variables `numDisparities` and `blockSize` based on the desired accuracy
+            # TODO: Fine-tune the variables `numDisparities` and `blockSize` based on the desired accuracy
             stereo = cv2.StereoBM_create(numDisparities=32, blockSize=9)
             disparity = stereo.compute(left_img, right_img)
 
+            # Get Valid Depth coordinates
             depth = self.depth_constant / (disparity + EPSILON)
             xs, ys = np.where((depth > 0) & (depth != np.inf))
-
-            # TODO: Improvise below code conversion
-            coords = np.stack((xs, ys, np.ones(xs.shape[0]))).T
-            optical_coords = self.left_camera.convert_to_optical_frame(coords)
-            new_optical_coords = depth[xs, ys][:, np.newaxis] * optical_coords
-            regular_coord = self.convert_to_body_frame(new_optical_coords)
             pixel_values = left_img_colour[xs, ys]
+
+            # Apply the inverse camera model
+            pixel_coords = np.stack((xs, ys, np.ones(xs.shape[0]))).T
+            canonical_coords = self.left_camera.convert_to_canonical_frame(pixel_coords)
+            optical_coords = depth[xs, ys][:, np.newaxis] * canonical_coords
+            regular_coord = self.convert_to_body_frame(optical_coords)
             z_coord = regular_coord[:, 2]
-            ind = np.where((z_coord > Z_MIN) & (z_coord < Z_MAX))
-            final_coord = regular_coord[ind]
-            pixel_values = pixel_values[ind]
+            threshold_ind = np.where((z_coord > Z_MIN) & (z_coord < Z_MAX))
+
+            # Coord and Pixel values
+            valid_coord = regular_coord[threshold_ind]
+            pixel_values = pixel_values[threshold_ind]
+
             self.current_index += 1
-            return final_coord, pixel_values
+            return valid_coord, pixel_values
         else:
             print("No more Samples!")
         return None
