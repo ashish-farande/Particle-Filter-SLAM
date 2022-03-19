@@ -1,4 +1,6 @@
-data/
+data/**/
+stereo_images.zip
+sensor_data.zip
 .DS_Store
 __pycache__/
 .idea/
