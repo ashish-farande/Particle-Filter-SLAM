@@ -1,12 +1,13 @@
 import os
+
 import cv2
 import numpy as np
 
 from Sensors.Sensor import Sensor
 
-
 Z_MIN = -10
 Z_MAX = 50
+EPSILON = 1e-5
 
 
 class Camera:
@@ -40,11 +41,11 @@ class Stereo(Sensor):
     def read_sample(self):
         assert self.left_camera_data_folder is not None
         assert self.right_camera_data_folder is not None
-        img = None
+
         if self.current_index < self.timestamp.shape[0]:
-            filename = str(self.timestamp[self.current_index])+".png"
+            filename = str(self.timestamp[self.current_index]) + ".png"
             left_img = cv2.imread(os.path.join(self.left_camera_data_folder, filename), 0)
-            right_img = cv2.imread(os.path.join(self.right_camera_data_folder, filename),0 )
+            right_img = cv2.imread(os.path.join(self.right_camera_data_folder, filename), 0)
 
             left_img_colour = cv2.cvtColor(left_img, cv2.COLOR_BAYER_BG2BGR)
             right_img = cv2.cvtColor(right_img, cv2.COLOR_BAYER_BG2BGR)
@@ -56,16 +57,16 @@ class Stereo(Sensor):
             stereo = cv2.StereoBM_create(numDisparities=32, blockSize=9)
             disparity = stereo.compute(left_img, right_img)
 
-            depth = self.depth_constant / disparity
-            xs, ys = np.where((depth>0)&(depth != np.inf))
+            depth = self.depth_constant / (disparity + EPSILON)
+            xs, ys = np.where((depth > 0) & (depth != np.inf))
 
             # TODO: Improvise below code conversion
             coords = np.stack((xs, ys, np.ones(xs.shape[0]))).T
             optical_coords = self.left_camera.convert_to_optical_frame(coords)
-            new_optical_coords = depth[xs, ys][:, np.newaxis]*optical_coords
+            new_optical_coords = depth[xs, ys][:, np.newaxis] * optical_coords
             regular_coord = self.convert_to_body_frame(new_optical_coords)
             pixel_values = left_img_colour[xs, ys]
-            z_coord = regular_coord[:,2]
+            z_coord = regular_coord[:, 2]
             ind = np.where((z_coord > Z_MIN) & (z_coord < Z_MAX))
             final_coord = regular_coord[ind]
             pixel_values = pixel_values[ind]

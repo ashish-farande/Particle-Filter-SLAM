@@ -1,4 +1,5 @@
 import cv2
+import matplotlib.pyplot as plt
 
 from Sensors.sensor_utils import *
 
@@ -20,7 +21,7 @@ class Map:
         self.odds = np.zeros((self.x_size, self.y_size))
         self.map = np.ones((self.x_size, self.y_size), dtype="uint8")
         self.robot_coord = []
-        self.texture_map = np.zeros((self.x_size, self.y_size, 3), dtype="uint8") * 255
+        self.texture_map = None
 
     def update_free(self, in_start_point, in_end_points):
         """
@@ -69,22 +70,11 @@ class Map:
         self.map[xs, ys] = np.where(self.odds[xs, ys] < 0, 0, 1)
         pass
 
-    def display(self, is_textured=False):
-        """
-        Display the map
-        @param is_textured: bool
-        @return:
-        """
-        if is_textured:
-            img = self.texture_map
-            name = "Texture Map"
-        else:
-            scaled = self.odds + abs(LAMBDA_MIN)
-            img = (scaled * 255 / (2 * LAMBDA_MAX)).astype(np.uint8)
-            name = "Log Odds"
-        cv2.imshow(name, img)
-        cv2.waitKey(10)
-        cv2.destroyAllWindows()
+    def update_robot_pose(self, robot_position):
+        robot_coord = self.convert_to_map(robot_position[np.newaxis, :])[0, :]
+
+        # Storing the location to draw the trajectory
+        self.robot_coord.append(robot_coord)
 
     def map_correlation(self, in_end_points):
         """
@@ -98,6 +88,12 @@ class Map:
         val = np.sum(self.map[xis[ind_good], yis[ind_good]])
         return val
 
+    def build_texture(self, coord, pixel_values):
+        if self.texture_map is None:
+            self.texture_map = np.zeros((self.x_size, self.y_size, 3), dtype="uint8") * 255
+        new_coord = self.convert_to_map(coord)
+        self.texture_map[new_coord[:, 0], new_coord[:, 1]] = pixel_values
+
     def convert_to_map(self, points):
         """
         Consert the World frame coordinates to Grid Coordinates
@@ -109,18 +105,34 @@ class Map:
         new_points[:, 1] = np.ceil((points[:, 1] - self.y_min) / self.res).astype(np.int16) - 1
         return new_points.astype(int)
 
-    def show_map(self, is_texture=False):
-        if is_texture:
-            img = self.texture_map
-            name = "Texture Map"
-        else:
-            img = ((1 / (1 + np.exp(-self.odds))) * 255).astype(np.uint8)
-            name = "Occupancy Map"
-
+    def display_map(self, wait_key=10):
+        img = ((1 / (1 + np.exp(-self.odds))) * 255).astype(np.uint8)
+        name = "Occupancy Map"
         cv2.imshow(name, img)
-        cv2.waitKey(0)
+        cv2.waitKey(wait_key)
         cv2.destroyAllWindows()
 
-    def build_texture(self, coord, pixel_values):
-        new_coord = self.convert_to_map(coord)
-        self.texture_map[new_coord[:, 0], new_coord[:, 1]] = pixel_values
+    def display_texture_map(self):
+        """
+        Display the texture map
+        @return:
+        """
+        if self.texture_map is not None:
+            img = self.texture_map
+            name = "Texture Map"
+            cv2.imshow(name, img)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
+        else:
+            print("ERROR: No texture map data available")
+
+    def show_robot_path(self):
+        fig, ax = plt.subplots(figsize=(5, 5))
+        self.robot_coord = np.array(self.robot_coord)
+        ax.plot(self.robot_coord[:, 0], self.robot_coord[:, 1], 'r-', label="Vehicle Trajectory")
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
+        ax.axis('equal')
+        ax.grid(False)
+        ax.legend()
+        plt.show(block=True)

@@ -1,8 +1,8 @@
 import os
 
 from ParticleFilter import *
-from Sensors.Lidar import Lidar
 from Sensors.DifferentialDrive import DifferentialDrive
+from Sensors.Lidar import Lidar
 from Sensors.Stereo import Stereo
 from Sensors.sensor_utils import *
 
@@ -27,10 +27,13 @@ STEREO_TO_VEHICLE_PARAMETERS_PATH = os.path.join(PARAM_PATH, 'Vehicle2Stereo.txt
 LEFT_CAMERA_CONFIG_FILE_PATH = os.path.join(PARAM_PATH, "left_camera.yaml")
 RIGHT_CAMERA_CONFIG_FILE_PATH = os.path.join(PARAM_PATH, "right_camera.yaml")
 
+LIDAR_ANGLES = np.linspace(-5, 185, 286) / 180 * np.pi
+
 
 class Vehicle:
-    def __init__(self, enable_texture_mapping=False):
+    def __init__(self, n_particles=20, enable_texture_mapping=False, enable_dead_reckoning=False):
         self.is_texture_mapping = enable_texture_mapping
+        self.enable_dead_reckoning = enable_dead_reckoning
 
         # Create Sensors
         self.lidar = Lidar(param_file=LIDAR_TO_VEHICLE_PARAMETERS_PATH)
@@ -38,7 +41,7 @@ class Vehicle:
         self.stereo = Stereo(LEFT_CAMERA_CONFIG_FILE_PATH, RIGHT_CAMERA_CONFIG_FILE_PATH, STEREO_TO_VEHICLE_PARAMETERS_PATH)
 
         # Create Particle Filter
-        self.pf = ParticleFilter()
+        self.pf = ParticleFilter(n_particles=n_particles, enable_dead_reckoning=enable_dead_reckoning)
 
     def start(self):
         """
@@ -65,18 +68,21 @@ class Vehicle:
         while move_ts and lidar_ts:
 
             self.pf.predict(self.move())
-            self.pf.update(self.observe())
-            self.pf.resample()
 
-            if self.is_texture_mapping:
-                while stereo_ts and lidar_ts  and lidar_ts > stereo_ts:
-                    coord, pixel = self.stereo.read_sample()
-                    stereo_ts = self.stereo.get_next_timestamp()
-                    self.pf.texture_map(coord, pixel)
-            self.pf.resample()
+            if not self.enable_dead_reckoning:
+                self.pf.update(self.observe())
+                self.pf.resample()
 
-            if i % 100 == 0:
-                self.pf.show_map( self.is_texture_mapping)
+                if self.is_texture_mapping:
+                    while stereo_ts and lidar_ts and lidar_ts > stereo_ts:
+                        coord, pixel = self.stereo.read_sample()
+                        stereo_ts = self.stereo.get_next_timestamp()
+                        self.pf.texture_map(coord, pixel)
+
+                if i % 100 == 0:
+                    self.pf.map.display_map()
+            else:
+                lidar_data = self.lidar.read_sample()
 
             move_ts = self.motion_sensor.get_next_timestamp()
             lidar_ts = self.lidar.get_next_timestamp()
@@ -109,5 +115,9 @@ class Vehicle:
         return s_b
 
     def show_map(self):
-        self.pf.map.show_map()
-
+        if self.enable_dead_reckoning:
+            self.pf.map.show_robot_path()
+        else:
+            self.pf.map.display_map(wait_key=0)
+            if self.is_texture_mapping:
+                self.pf.map.display_texture_map()

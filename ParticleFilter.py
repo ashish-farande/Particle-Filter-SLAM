@@ -1,10 +1,6 @@
-import os
-
 from Map import *
 
-PROJECT_PATH = os.path.dirname(os.path.abspath(__file__))
-
-LIDAR_ANGLES = np.linspace(-5, 185, 286) / 180 * np.pi
+EPSILON = 1e-5
 
 
 def convert_to_world_frame(angle, pos, points):
@@ -42,6 +38,19 @@ class ParticleFilter:
             self.particle_poses = np.zeros((n_particles, 3))
             self.particle_weights = np.ones(n_particles) / n_particles
 
+    def initialise_map(self, lidar_observation):
+        """
+
+        @param lidar_observation: End points from Lidar Coordinates in the robot frame
+        @return:
+
+        As name suggests it initialises the map with the first data from lidar sensor
+        """
+        self.best_particle = Particle()
+        lidar_coord_world = convert_to_world_frame(self.best_particle.angle, self.best_particle.position, lidar_observation[:, :2])
+        self.map.update_free(np.array(self.best_particle.position), lidar_coord_world)
+        return
+
     def predict(self, delta_robot_pose):
         """
         Update the pose using the delta pose and the current pose. Also, add noise to the particles.
@@ -53,6 +62,7 @@ class ParticleFilter:
             self.one_particle.position[0] += delta_robot_pose[0] * np.cos(self.one_particle.angle)
             self.one_particle.position[1] += delta_robot_pose[0] * np.sin(self.one_particle.angle)
             self.one_particle.angle += delta_robot_pose[1]
+            self.map.update_robot_pose(np.array(self.one_particle.position))
         else:
             # Add noise to the particles
             for i in range(self.particle_poses.shape[0]):
@@ -87,7 +97,7 @@ class ParticleFilter:
                     max_weight = self.particle_weights[i]
 
             # Find the best particle
-            self.particle_weights /= np.sum(self.particle_weights)
+            self.particle_weights /= (np.sum(self.particle_weights) + EPSILON)
             best_particle_pose = self.particle_poses[np.argmax(self.particle_weights)]
             self.best_particle = Particle(position=best_particle_pose[:2], angle=best_particle_pose[2], weight=max_weight)
 
@@ -95,27 +105,7 @@ class ParticleFilter:
         lidar_coord_world = convert_to_world_frame(self.best_particle.angle, self.best_particle.position, lidar_observation[:, :2])
 
         # Update the map using the best particles lidar scan
-        self.update_map(lidar_coord_world, self.best_particle)
-
-    def update_map(self, lidar_coord, best_particle):
-        self.map.update_free(np.array(best_particle.position), lidar_coord)
-        return
-
-    def initialise_map(self, lidar_observation):
-        """
-
-        @param lidar_observation: End points from Lidar Coordinates in the robot frame
-        @return:
-
-        As name suggests it initialises the map with the first data from lidar sensor
-        """
-        self.best_particle = Particle()
-        lidar_coord_world = convert_to_world_frame(self.best_particle.angle, self.best_particle.position, lidar_observation[:, :2])
-        self.update_map(lidar_coord_world, self.best_particle)
-        return
-
-    def show_map(self, is_textured):
-        self.map.display(is_textured)
+        self.map.update_free(np.array(self.best_particle.position), lidar_coord_world)
 
     def resample(self):
         """
@@ -127,15 +117,16 @@ class ParticleFilter:
         sorted_particle_poses = self.particle_poses[sorted_index]
 
         particle_cum = np.cumsum(self.particle_weights)
-        new_poses = []
-        for i in range(self.n_particles - 1):
-            n_ = np.random.uniform(0, 1)
-            j = 0
-            while n_ > particle_cum[j]:
-                j += 1
-            new_poses.append(sorted_particle_poses[j, :])
-        self.particle_poses[:-1] = np.array(new_poses)
-        self.particle_weights = np.ones(self.n_particles) / self.n_particles
+        if particle_cum[-1] > 0:
+            new_poses = []
+            for i in range(self.n_particles - 1):
+                n_ = np.random.uniform(0, 1)
+                j = 0
+                while n_ > particle_cum[j]:
+                    j += 1
+                new_poses.append(sorted_particle_poses[j, :])
+            self.particle_poses[:-1] = np.array(new_poses)
+            self.particle_weights = np.ones(self.n_particles) / self.n_particles
 
     def texture_map(self, coord, pixel_values):
         stereo_coord_world = convert_to_world_frame(self.best_particle.angle, self.best_particle.position, coord[:, :2])
