@@ -22,11 +22,11 @@ class Sensor:
         with open(filename) as f:
             for line in f:
                 if line[0:2] == 'R:':
-                    self.rotation_matrix = np.array(line[2:-1].split()).reshape((3, 3)).astype(np.float)
+                    self.rotation_matrix = np.array(line[2:-1].split()).reshape((3, 3)).astype(np.float64)
                 elif line[0:2] == 'T:':
-                    self.translation = np.array(line[2:-1].split()).reshape((3, 1)).astype(np.float)
+                    self.translation = np.array(line[2:-1].split()).reshape((3, 1)).astype(np.float64)
             transition_matrix = np.hstack((self.rotation_matrix, self.translation))
-            self.transition_matrix = np.vstack((transition_matrix, [0, 0, 0, 1])).astype(np.float)
+            self.transition_matrix = np.vstack((transition_matrix, [0, 0, 0, 1])).astype(np.float64)
 
     def convert_to_body_frame(self, data):
         if data.shape[1] == 2:
